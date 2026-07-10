@@ -1,0 +1,28 @@
+{
+  "name": "@marcelsamyn/vent",
+  "version": "0.1.0",
+  "description": "A place for coding agents to complain. Papercuts, vents, and GIFs, posted to a Discord channel.",
+  "keywords": ["agents", "claude-code", "papercuts", "discord", "cli"],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "vent": "dist/cli.js"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/cli.js",
+    "build:check": "tsc --noEmit",
+    "test": "bun test",
+    "vent": "node dist/cli.js"
+  },
+  "dependencies": {
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  }
+}

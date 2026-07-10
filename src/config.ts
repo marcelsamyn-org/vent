@@ -52,7 +52,8 @@ export function resolveConfig(env: NodeJS.ProcessEnv): ConfigResult {
   if (webhookUrl === undefined) {
     return {
       ok: false,
-      reason: `no webhook configured. Set VENT_WEBHOOK_URL, or write {"webhookUrl": "..."} to ${CONFIG_PATH}`,
+      // The path we actually looked at, which VENT_CONFIG_PATH may have moved.
+      reason: `no webhook configured. Set VENT_WEBHOOK_URL, or write {"webhookUrl": "..."} to ${configPath}`,
     };
   }
 

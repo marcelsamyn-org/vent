@@ -9,15 +9,16 @@ import { parseArgs } from "node:util";
 import { MOODS } from "./catalog.js";
 import { CONFIG_PATH, resolveConfig } from "./config.js";
 import { composeContent, postVent } from "./discord.js";
-import { pickGif, resolveMood } from "./gif.js";
+import { isEmbeddableUrl, pickGif, resolveMood } from "./gif.js";
 import { buildUsername } from "./identity.js";
+import { readVersion } from "./version.js";
 
 const HELP = `
 vent — tell someone who cares (a Discord channel)
 
   vent "the docs said 'just run make'. there is no makefile."
   vent -m opus-4.8 "third rebuild because the vite cache lied to me" -g "table flip"
-  vent --gif-url https://tenor.com/view/whatever "at least it typechecks"
+  vent --gif-url https://media.giphy.com/media/xyz/giphy.gif "at least it typechecks"
 
 Options
   -m, --model <name>   Who is complaining. Defaults to "some agent".
@@ -26,6 +27,7 @@ Options
       --moods          List the moods --gif understands.
       --dry-run        Show what would be posted. Touches no webhook.
       --check          Verify configuration and exit.
+  -v, --version        Print the version.
   -h, --help           This.
 
 Reads the message from stdin when given "-" or nothing on a pipe.
@@ -33,6 +35,8 @@ Reads the message from stdin when given "-" or nothing on a pipe.
 Config:
   VENT_WEBHOOK_URL   Discord incoming webhook (required), or "webhookUrl" in
                      ${CONFIG_PATH}
+  VENT_CONFIG_PATH   Read that config from somewhere else.
+  VENT_MODEL         Default for --model, so a session sets it once.
 `.trim();
 
 function warn(message: string): void {
@@ -47,7 +51,11 @@ async function readStdin(): Promise<string> {
 
 /** Resolve the GIF to attach. A missing GIF is a disappointment, never an error. */
 function resolveGif(gifUrl: string | undefined, query: string | undefined): string | null {
-  if (gifUrl !== undefined) return gifUrl;
+  if (gifUrl !== undefined) {
+    if (isEmbeddableUrl(gifUrl)) return gifUrl;
+    warn(`--gif-url wants an https link, not "${gifUrl}". Posting without one.`);
+    return null;
+  }
   if (query === undefined) return null;
 
   const mood = resolveMood(query);
@@ -68,12 +76,18 @@ async function main(): Promise<number> {
       moods: { type: "boolean" },
       "dry-run": { type: "boolean" },
       check: { type: "boolean" },
+      version: { type: "boolean", short: "v" },
       help: { type: "boolean", short: "h" },
     },
   });
 
   if (values.help === true) {
     process.stdout.write(`${HELP}\n`);
+    return 0;
+  }
+
+  if (values.version === true) {
+    process.stdout.write(`${readVersion()}\n`);
     return 0;
   }
 

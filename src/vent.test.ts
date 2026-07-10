@@ -6,8 +6,9 @@ import { join } from "node:path";
 import { CATALOG, MOODS } from "./catalog.js";
 import { resolveConfig } from "./config.js";
 import { composeContent, postVent } from "./discord.js";
-import { pickGif, resolveMood } from "./gif.js";
+import { isEmbeddableUrl, pickGif, resolveMood } from "./gif.js";
 import { buildUsername } from "./identity.js";
+import { readVersion } from "./version.js";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123/abc";
 /** Keep the developer's real ~/.config/vent/config.json out of these tests. */
@@ -46,6 +47,11 @@ describe("resolveConfig", () => {
     expect(resolveConfig(NO_CONFIG_FILE).ok).toBe(false);
   });
 
+  test("names the config path it actually looked at", () => {
+    const result = resolveConfig({ VENT_CONFIG_PATH: "/somewhere/else.json" });
+    expect(result.ok === false && result.reason).toContain("/somewhere/else.json");
+  });
+
   test("an empty env var does not shadow the config file", () => {
     const result = resolveConfig({ VENT_CONFIG_PATH: "/nonexistent/x.json", VENT_WEBHOOK_URL: "  " });
     expect(result.ok).toBe(false);
@@ -79,6 +85,33 @@ describe("resolveMood", () => {
   test("returns null rather than guessing", () => {
     expect(resolveMood("quarterly revenue synergy")).toBe(null);
     expect(resolveMood("   ")).toBe(null);
+  });
+
+  test("refuses to guess from a query too short to mean anything", () => {
+    // "a" is a substring of "despair"; containment would have matched it.
+    expect(resolveMood("a")).toBe(null);
+    expect(resolveMood("xy")).toBe(null);
+    // ...but a real 3-letter alias still resolves.
+    expect(resolveMood("wtf")).toBe("confused");
+  });
+});
+
+describe("isEmbeddableUrl", () => {
+  test("accepts an https gif", () => {
+    expect(isEmbeddableUrl("https://media.giphy.com/media/abc/giphy.gif")).toBe(true);
+  });
+
+  test("rejects http, junk, and shell mishaps", () => {
+    expect(isEmbeddableUrl("http://media.giphy.com/media/abc/giphy.gif")).toBe(false);
+    expect(isEmbeddableUrl("table flip")).toBe(false);
+    expect(isEmbeddableUrl("")).toBe(false);
+    expect(isEmbeddableUrl("javascript:alert(1)")).toBe(false);
+  });
+});
+
+describe("readVersion", () => {
+  test("reports the version from the shipped package.json", () => {
+    expect(readVersion()).toMatch(/^\d+\.\d+\.\d+/);
   });
 });
 

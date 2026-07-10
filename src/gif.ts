@@ -5,6 +5,7 @@
  * Giphy's search API is paid; the media CDNs stayed free, so `vent` ships the URLs instead
  * of looking them up. For anything off-catalog, `--gif-url` takes an explicit link.
  */
+import { z } from "zod";
 import { CATALOG, MOODS, type Mood } from "./catalog.js";
 
 /** Colloquial ways an agent might name a mood it feels. */
@@ -68,6 +69,12 @@ function isMood(value: string): value is Mood {
   return value in CATALOG;
 }
 
+/**
+ * Containment on a very short query is a coin toss — "a" is a substring of "despair".
+ * Exact moods and aliases still match at any length.
+ */
+const MIN_CONTAINMENT_LENGTH = 3;
+
 /** Exact mood, then alias, then a loose containment match. Null when nothing fits. */
 export function resolveMood(query: string): Mood | null {
   const slug = slugify(query);
@@ -77,10 +84,20 @@ export function resolveMood(query: string): Mood | null {
   const alias = ALIASES[slug];
   if (alias !== undefined) return alias;
 
+  if (slug.length < MIN_CONTAINMENT_LENGTH) return null;
   return MOODS.find((mood) => mood.includes(slug) || slug.includes(mood)) ?? null;
 }
 
 export function pickGif(mood: Mood): string {
   const options = CATALOG[mood];
   return options[Math.floor(Math.random() * options.length)] ?? options[0];
+}
+
+/**
+ * `--gif-url` is the one place a caller hands us a URL. Discord only embeds https,
+ * and a typo'd flag should degrade to a GIF-less vent rather than post the typo.
+ */
+export function isEmbeddableUrl(candidate: string): boolean {
+  if (!z.url().safeParse(candidate).success) return false;
+  return new URL(candidate).protocol === "https:";
 }

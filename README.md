@@ -42,31 +42,44 @@ vent --check
 `VENT_WEBHOOK_URL` overrides the file, which is how you reach cloud sessions and
 other machines that never see your home directory.
 
-### 3. GIFs (optional, but the whole point)
+### 3. GIFs
 
-GIF search uses [Tenor](https://developers.google.com/tenor/guides/quickstart),
-which needs a Google API key with the **Tenor API** enabled in Google Cloud Console.
-Add it as `"tenorApiKey"` in the config file, or set `VENT_TENOR_KEY`. `GOOGLE_API_KEY`
-is picked up too.
+Nothing to do. There is no GIF API key, because there is no GIF API.
 
-Without a key, `--gif` degrades to posting without one and says so. `--gif-url` always
-works and needs nothing.
+Google shut the Tenor API down on 2026-06-30 and Giphy's search API is paid, so `vent`
+ships a curated catalog of reaction GIFs and posts the URL. The media CDNs are still free
+and Discord embeds a link without ever calling anyone's API.
+
+```console
+$ vent --moods
+confused        despair     dumpster-fire  exhausted  eye-roll
+facepalm        groundhog-day  head-desk   here-we-go-again  it-works
+nervous         rage-quit   relief         screaming  shrug
+side-eye        slow-clap   table-flip     this-is-fine  waiting
+```
+
+`-g` normalizes and understands colloquial aliases, so `-g "Groundhog Day"`, `-g idk`,
+`-g finally` and `-g fire` all land somewhere sensible. Anything off-catalog takes
+`--gif-url`.
 
 ## Usage
 
 ```
-vent [message] [-m model] [-g query | --gif-url url] [--dry-run] [--check]
+vent [message] [-m model] [-g mood | --gif-url url] [--moods] [--dry-run] [--check]
 ```
 
 | Flag | |
 |---|---|
 | `-m, --model` | Who is complaining. Defaults to `some agent`. |
-| `-g, --gif` | Search Tenor, attach a random hit from the top 10. |
-| `--gif-url` | Attach a specific GIF. No API key needed. |
+| `-g, --gif` | Attach a reaction GIF for a mood. No key, no network. |
+| `--gif-url` | Attach a specific GIF instead. |
+| `--moods` | List the moods `--gif` understands. |
 | `--dry-run` | Print the payload, touch no webhook. |
 | `--check` | Verify configuration and exit. |
 
 The message can arrive on stdin instead: `git log --oneline -1 | vent -`.
+
+`VENT_CONFIG_PATH` points at a different config file, if you want a second channel.
 
 ## Design notes
 
@@ -81,6 +94,12 @@ so the host is checked before the first byte leaves.
 
 **It cannot ping you.** Every post sets `allowed_mentions: { parse: [] }`, so a vent
 that happens to quote a log line containing `@everyone` stays inert.
+
+**The GIFs are curated, not searched.** A live search returns whatever is trending; a
+hand-picked set lands the joke. It also keeps `vent` a one-secret tool, which is what makes
+it work unchanged in a cloud session. If you ever want long-tail search back,
+[Klipy](https://docs.klipy.com/) is the drop-in Tenor successor (founded by ex-Tenor staff,
+free tier, and what Discord's own picker migrated to) — `api/v1/{app_key}/gifs/search`.
 
 ## Prior art
 

@@ -3,11 +3,15 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CATALOG, MOODS } from "./catalog.js";
 import { resolveConfig } from "./config.js";
 import { composeContent, postVent } from "./discord.js";
+import { pickGif, resolveMood } from "./gif.js";
 import { buildUsername } from "./identity.js";
 
 const WEBHOOK = "https://discord.com/api/webhooks/123/abc";
+/** Keep the developer's real ~/.config/vent/config.json out of these tests. */
+const NO_CONFIG_FILE = { VENT_CONFIG_PATH: "/nonexistent/vent/config.json" };
 
 /** A real repo with a real linked worktree, because that is where the naming broke. */
 function withRepoAndWorktree(run: (paths: { repo: string; worktree: string }) => void): void {
@@ -28,30 +32,73 @@ function withRepoAndWorktree(run: (paths: { repo: string; worktree: string }) =>
 }
 
 describe("resolveConfig", () => {
-  test("env wins over an absent config file", () => {
-    const result = resolveConfig({ VENT_WEBHOOK_URL: WEBHOOK });
-    expect(result).toEqual({ ok: true, config: { webhookUrl: WEBHOOK, tenorApiKey: null } });
+  test("reads the webhook from the environment", () => {
+    expect(resolveConfig({ ...NO_CONFIG_FILE, VENT_WEBHOOK_URL: WEBHOOK })).toEqual({ ok: true, webhookUrl: WEBHOOK });
   });
 
   test("refuses a webhook that is not Discord", () => {
-    const result = resolveConfig({ VENT_WEBHOOK_URL: "https://evil.example/api/webhooks/1/2" });
+    const result = resolveConfig({ ...NO_CONFIG_FILE, VENT_WEBHOOK_URL: "https://evil.example/api/webhooks/1/2" });
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.reason).toContain("evil.example");
   });
 
   test("reports missing configuration instead of throwing", () => {
-    const result = resolveConfig({});
+    expect(resolveConfig(NO_CONFIG_FILE).ok).toBe(false);
+  });
+
+  test("an empty env var does not shadow the config file", () => {
+    const result = resolveConfig({ VENT_CONFIG_PATH: "/nonexistent/x.json", VENT_WEBHOOK_URL: "  " });
     expect(result.ok).toBe(false);
   });
+});
 
-  test("falls back through the Tenor key aliases", () => {
-    const result = resolveConfig({ VENT_WEBHOOK_URL: WEBHOOK, GOOGLE_API_KEY: "goog" });
-    expect(result.ok === true && result.config.tenorApiKey).toBe("goog");
+describe("resolveMood", () => {
+  test("matches a mood exactly", () => {
+    expect(resolveMood("table-flip")).toBe("table-flip");
   });
 
-  test("treats a blank env var as unset", () => {
-    const result = resolveConfig({ VENT_WEBHOOK_URL: WEBHOOK, VENT_TENOR_KEY: "  " });
-    expect(result.ok === true && result.config.tenorApiKey).toBe(null);
+  test("normalizes spacing and case", () => {
+    expect(resolveMood("Groundhog Day")).toBe("groundhog-day");
+  });
+
+  test("follows colloquial aliases", () => {
+    expect(resolveMood("idk")).toBe("shrug");
+    expect(resolveMood("finally")).toBe("relief");
+    expect(resolveMood("fire")).toBe("this-is-fine");
+  });
+
+  test("aliases win over loose containment", () => {
+    // "fire" is a substring of dumpster-fire, but the alias points somewhere better.
+    expect(resolveMood("fire")).not.toBe("dumpster-fire");
+  });
+
+  test("falls back to containment", () => {
+    expect(resolveMood("screaming internally")).toBe("screaming");
+  });
+
+  test("returns null rather than guessing", () => {
+    expect(resolveMood("quarterly revenue synergy")).toBe(null);
+    expect(resolveMood("   ")).toBe(null);
+  });
+});
+
+describe("catalog", () => {
+  test("every mood has at least one GIF and every URL is a giphy gif", () => {
+    const urls = MOODS.flatMap((mood) => CATALOG[mood]);
+    expect(MOODS.length).toBeGreaterThan(0);
+    for (const mood of MOODS) expect(CATALOG[mood].length).toBeGreaterThan(0);
+    for (const url of urls) expect(url).toMatch(/^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]+\/giphy(-downsized)?\.gif$/);
+  });
+
+  test("no GIF is shared between moods", () => {
+    const urls = MOODS.flatMap((mood) => CATALOG[mood]);
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+
+  test("pickGif always returns one of the mood's own GIFs", () => {
+    for (const mood of MOODS) {
+      for (let i = 0; i < 10; i++) expect(CATALOG[mood]).toContain(pickGif(mood));
+    }
   });
 });
 

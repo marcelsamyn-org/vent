@@ -2,7 +2,7 @@
  * Config resolution for `vent`.
  *
  * Environment wins over the config file, so cloud sessions and one-off shells can
- * override without touching disk. Aliases: settings, credentials, webhook url, tenor key.
+ * override without touching disk. Aliases: settings, credentials, webhook url.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -13,33 +13,23 @@ export const CONFIG_PATH = join(homedir(), ".config", "vent", "config.json");
 
 const configFileSchema = z.object({
   webhookUrl: z.url().optional(),
-  tenorApiKey: z.string().min(1).optional(),
 });
 
-export type VentConfig = {
-  readonly webhookUrl: string;
-  readonly tenorApiKey: string | null;
-};
-
 export type ConfigResult =
-  | { readonly ok: true; readonly config: VentConfig }
+  | { readonly ok: true; readonly webhookUrl: string }
   | { readonly ok: false; readonly reason: string };
 
 /** Discord is the only host we will ever POST a vent to. */
 const ALLOWED_WEBHOOK_HOSTS = new Set(["discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"]);
 
-function readConfigFile(): z.infer<typeof configFileSchema> {
+function readConfigFile(path: string): z.infer<typeof configFileSchema> {
   let raw: string;
   try {
-    raw = readFileSync(CONFIG_PATH, "utf8");
+    raw = readFileSync(path, "utf8");
   } catch {
     return {};
   }
   return configFileSchema.parse(JSON.parse(raw));
-}
-
-function firstNonEmpty(...values: readonly (string | undefined)[]): string | undefined {
-  return values.find((value) => value !== undefined && value.trim() !== "");
 }
 
 /**
@@ -55,9 +45,10 @@ function checkWebhookHost(webhookUrl: string): string | null {
 }
 
 export function resolveConfig(env: NodeJS.ProcessEnv): ConfigResult {
-  const file = readConfigFile();
+  const fromEnv = env["VENT_WEBHOOK_URL"];
+  const configPath = env["VENT_CONFIG_PATH"] ?? CONFIG_PATH;
+  const webhookUrl = fromEnv !== undefined && fromEnv.trim() !== "" ? fromEnv : readConfigFile(configPath).webhookUrl;
 
-  const webhookUrl = firstNonEmpty(env["VENT_WEBHOOK_URL"], file.webhookUrl);
   if (webhookUrl === undefined) {
     return {
       ok: false,
@@ -68,12 +59,5 @@ export function resolveConfig(env: NodeJS.ProcessEnv): ConfigResult {
   const hostProblem = checkWebhookHost(webhookUrl);
   if (hostProblem !== null) return { ok: false, reason: hostProblem };
 
-  const tenorApiKey = firstNonEmpty(
-    env["VENT_TENOR_KEY"],
-    env["TENOR_API_KEY"],
-    env["GOOGLE_API_KEY"],
-    file.tenorApiKey,
-  );
-
-  return { ok: true, config: { webhookUrl, tenorApiKey: tenorApiKey ?? null } };
+  return { ok: true, webhookUrl };
 }

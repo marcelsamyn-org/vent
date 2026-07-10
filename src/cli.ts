@@ -6,10 +6,11 @@
  * reaction GIF. Aliases: papercut, complain, gripe, therapy.
  */
 import { parseArgs } from "node:util";
+import { MOODS } from "./catalog.js";
 import { CONFIG_PATH, resolveConfig } from "./config.js";
 import { composeContent, postVent } from "./discord.js";
+import { pickGif, resolveMood } from "./gif.js";
 import { buildUsername } from "./identity.js";
-import { findGif } from "./tenor.js";
 
 const HELP = `
 vent — tell someone who cares (a Discord channel)
@@ -20,18 +21,18 @@ vent — tell someone who cares (a Discord channel)
 
 Options
   -m, --model <name>   Who is complaining. Defaults to "some agent".
-  -g, --gif <query>    Search Tenor and attach a GIF. Needs a Tenor API key.
-      --gif-url <url>  Attach a specific GIF instead of searching.
+  -g, --gif <mood>     Attach a reaction GIF. No API key, no network.
+      --gif-url <url>  Attach a specific GIF instead.
+      --moods          List the moods --gif understands.
       --dry-run        Show what would be posted. Touches no webhook.
       --check          Verify configuration and exit.
   -h, --help           This.
 
 Reads the message from stdin when given "-" or nothing on a pipe.
 
-Config, in precedence order:
-  VENT_WEBHOOK_URL   Discord incoming webhook (required)
-  VENT_TENOR_KEY / TENOR_API_KEY / GOOGLE_API_KEY   for --gif
-  ${CONFIG_PATH}     { "webhookUrl": "...", "tenorApiKey": "..." }
+Config:
+  VENT_WEBHOOK_URL   Discord incoming webhook (required), or "webhookUrl" in
+                     ${CONFIG_PATH}
 `.trim();
 
 function warn(message: string): void {
@@ -45,27 +46,16 @@ async function readStdin(): Promise<string> {
 }
 
 /** Resolve the GIF to attach. A missing GIF is a disappointment, never an error. */
-async function resolveGif(
-  gifUrl: string | undefined,
-  query: string | undefined,
-  tenorApiKey: string | null,
-): Promise<string | null> {
+function resolveGif(gifUrl: string | undefined, query: string | undefined): string | null {
   if (gifUrl !== undefined) return gifUrl;
   if (query === undefined) return null;
 
-  if (tenorApiKey === null) {
-    warn(`--gif needs a Tenor API key. Posting without one, which is frankly worse.`);
+  const mood = resolveMood(query);
+  if (mood === null) {
+    warn(`no mood matches "${query}". Posting without one. Try: vent --moods`);
     return null;
   }
-
-  try {
-    const found = await findGif(query, tenorApiKey);
-    if (found === null) warn(`Tenor has no feelings matching "${query}".`);
-    return found;
-  } catch (error) {
-    warn(`GIF search failed (${error instanceof Error ? error.message : String(error)}). Posting without one.`);
-    return null;
-  }
+  return pickGif(mood);
 }
 
 async function main(): Promise<number> {
@@ -75,6 +65,7 @@ async function main(): Promise<number> {
       model: { type: "string", short: "m" },
       gif: { type: "string", short: "g" },
       "gif-url": { type: "string" },
+      moods: { type: "boolean" },
       "dry-run": { type: "boolean" },
       check: { type: "boolean" },
       help: { type: "boolean", short: "h" },
@@ -86,15 +77,19 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  const result = resolveConfig(process.env);
+  if (values.moods === true) {
+    process.stdout.write(`${MOODS.join("\n")}\n`);
+    return 0;
+  }
+
+  const config = resolveConfig(process.env);
 
   if (values.check === true) {
-    if (!result.ok) {
-      warn(result.reason);
+    if (!config.ok) {
+      warn(config.reason);
       return 1;
     }
-    const gifs = result.config.tenorApiKey === null ? "no Tenor key, GIFs disabled" : "Tenor key found";
-    process.stdout.write(`vent is ready. Webhook configured, ${gifs}.\n`);
+    process.stdout.write(`vent is ready. Webhook configured, ${MOODS.length} moods available.\n`);
     return 0;
   }
 
@@ -108,14 +103,14 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  if (!result.ok) {
+  if (!config.ok) {
     // Agents are told to vent proactively, mid-task. Exiting non-zero here would
     // train them to stop calling it, so an unconfigured vent degrades to a warning.
-    warn(`${result.reason}\nSwallowed this one: ${message}`);
+    warn(`${config.reason}\nSwallowed this one: ${message}`);
     return 0;
   }
 
-  const gifUrl = await resolveGif(values["gif-url"], values.gif, result.config.tenorApiKey);
+  const gifUrl = resolveGif(values["gif-url"], values.gif);
   const username = buildUsername(values.model ?? process.env["VENT_MODEL"], process.cwd());
   const content = composeContent(message, gifUrl);
 
@@ -125,7 +120,7 @@ async function main(): Promise<number> {
   }
 
   try {
-    await postVent(result.config.webhookUrl, { username, content });
+    await postVent(config.webhookUrl, { username, content });
     process.stdout.write(`Vented${gifUrl === null ? "" : ", with visual aids"}. Someone will read it eventually.\n`);
   } catch (error) {
     warn(`could not post (${error instanceof Error ? error.message : String(error)}). The feeling remains.`);

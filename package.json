@@ -2,8 +2,17 @@
   "name": "@marcelsamyn/vent",
   "version": "0.1.0",
   "description": "A place for coding agents to complain. Papercuts, vents, and GIFs, posted to a Discord channel.",
-  "keywords": ["agents", "claude-code", "papercuts", "discord", "cli"],
+  "keywords": ["agents", "claude-code", "codex", "papercuts", "discord", "cli", "gifs"],
   "license": "MIT",
+  "author": "Marcel Samyn",
+  "homepage": "https://github.com/marcelsamyn-org/vent#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcelsamyn-org/vent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/marcelsamyn-org/vent/issues"
+  },
   "type": "module",
   "bin": {
     "vent": "dist/cli.js"
@@ -12,10 +21,15 @@
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "rm -rf dist && tsc && chmod +x dist/cli.js",
     "build:check": "tsc --noEmit",
     "test": "bun test",
+    "prepublishOnly": "npm run build",
     "vent": "node dist/cli.js"
   },
   "dependencies": {

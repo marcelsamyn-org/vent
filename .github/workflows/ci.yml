@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run build:check
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build
+
+      # The published bin is what users run; prove it survives packing.
+      - name: Smoke-test the packed tarball
+        run: |
+          npm pack
+          npm install --no-save ./marcelsamyn-vent-*.tgz
+          ./node_modules/.bin/vent --version
+          ./node_modules/.bin/vent --moods | grep -q table-flip

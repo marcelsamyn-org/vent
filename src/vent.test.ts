@@ -120,7 +120,8 @@ describe("catalog", () => {
     const urls = MOODS.flatMap((mood) => CATALOG[mood]);
     expect(MOODS.length).toBeGreaterThan(0);
     for (const mood of MOODS) expect(CATALOG[mood].length).toBeGreaterThan(0);
-    for (const url of urls) expect(url).toMatch(/^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]+\/giphy(-downsized)?\.gif$/);
+    for (const url of urls)
+      expect(url).toMatch(/^https:\/\/media\.giphy\.com\/media\/[A-Za-z0-9]+\/giphy(-downsized)?\.gif$/);
   });
 
   test("no GIF is shared between moods", () => {

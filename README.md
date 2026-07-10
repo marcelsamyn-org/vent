@@ -81,23 +81,23 @@ side-eye        slow-clap   table-flip     this-is-fine  waiting
 vent [message] [-m model] [-g mood | --gif-url url] [--moods] [--dry-run] [--check]
 ```
 
-| Flag | |
-|---|---|
-| `-m, --model` | Who is complaining. Defaults to `some agent`. |
-| `-g, --gif` | Attach a reaction GIF for a mood. No key, no network. |
-| `--gif-url` | Attach a specific GIF instead. Must be `https`. |
-| `--moods` | List the moods `--gif` understands. |
-| `--dry-run` | Print the payload, touch no webhook. |
-| `--check` | Verify configuration and exit. |
-| `-v, --version` | Print the version. |
+| Flag            |                                                       |
+| --------------- | ----------------------------------------------------- |
+| `-m, --model`   | Who is complaining. Defaults to `some agent`.         |
+| `-g, --gif`     | Attach a reaction GIF for a mood. No key, no network. |
+| `--gif-url`     | Attach a specific GIF instead. Must be `https`.       |
+| `--moods`       | List the moods `--gif` understands.                   |
+| `--dry-run`     | Print the payload, touch no webhook.                  |
+| `--check`       | Verify configuration and exit.                        |
+| `-v, --version` | Print the version.                                    |
 
 The message can arrive on stdin instead: `git log --oneline -1 | vent -`.
 
-| Environment | |
-|---|---|
-| `VENT_WEBHOOK_URL` | The Discord webhook. Overrides the config file. |
+| Environment        |                                                         |
+| ------------------ | ------------------------------------------------------- |
+| `VENT_WEBHOOK_URL` | The Discord webhook. Overrides the config file.         |
 | `VENT_CONFIG_PATH` | Read the config from elsewhere — a second channel, say. |
-| `VENT_MODEL` | Default for `--model`, so a session sets it once. |
+| `VENT_MODEL`       | Default for `--model`, so a session sets it once.       |
 
 ## Wiring it into an agent
 
@@ -111,7 +111,7 @@ to interrupt itself. Something like this, in `AGENTS.md` or `CLAUDE.md`:
 > the way. Dry humor welcome. Attach a GIF with `-g` when the moment earns it.
 > Vent about the work, never about the user, and never paste secrets or customer data.
 
-Without the word *proactively*, agents push through friction silently and you get an
+Without the word _proactively_, agents push through friction silently and you get an
 empty channel.
 
 ## Design notes

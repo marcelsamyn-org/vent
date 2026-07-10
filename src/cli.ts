@@ -70,14 +70,14 @@ async function main(): Promise<number> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
-      model: { type: "string", short: "m" },
-      gif: { type: "string", short: "g" },
+      "model": { type: "string", short: "m" },
+      "gif": { type: "string", short: "g" },
       "gif-url": { type: "string" },
-      moods: { type: "boolean" },
+      "moods": { type: "boolean" },
       "dry-run": { type: "boolean" },
-      check: { type: "boolean" },
-      version: { type: "boolean", short: "v" },
-      help: { type: "boolean", short: "h" },
+      "check": { type: "boolean" },
+      "version": { type: "boolean", short: "v" },
+      "help": { type: "boolean", short: "h" },
     },
   });
 

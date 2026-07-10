@@ -16,8 +16,7 @@ const configFileSchema = z.object({
 });
 
 export type ConfigResult =
-  | { readonly ok: true; readonly webhookUrl: string }
-  | { readonly ok: false; readonly reason: string };
+  { readonly ok: true; readonly webhookUrl: string } | { readonly ok: false; readonly reason: string };
 
 /** Discord is the only host we will ever POST a vent to. */
 const ALLOWED_WEBHOOK_HOSTS = new Set(["discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"]);
